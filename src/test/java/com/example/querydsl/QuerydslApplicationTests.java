@@ -7,6 +7,7 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
@@ -14,7 +15,8 @@ import javax.persistence.EntityManager;
 import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest
-@Transactional
+@Transactional // 테스트에 @Transactional 이 있으면 rollback을 해버리기 때문에 @Commit 어노테이션을 붙인다.
+@Commit
 class QuerydslApplicationTests {
 
     @Autowired
