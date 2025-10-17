@@ -18,12 +18,12 @@ public class Team {
 
     private String name;
 
+    // 양방향 연관관계의 주인은 Member에 있는 team이다.
     @OneToMany(mappedBy = "team")
     private List<Member> members = new ArrayList<>();
 
     public Team(String name) {
         this.name = name;
     }
-
 
 }

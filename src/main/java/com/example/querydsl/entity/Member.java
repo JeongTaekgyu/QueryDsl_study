@@ -16,6 +16,7 @@ public class Member {
     private String username;
     private int age;
 
+    // 외래키가 있는 주인 쪽에서 상대방한테 @JoinColumn을 걸어준다. - 외래키는 Member에 있는 team_id 이다.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id")
     private Team team;
