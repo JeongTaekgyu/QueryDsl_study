@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
 
+import static com.example.querydsl.entity.QMember.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
@@ -67,14 +68,29 @@ public class QuerydslBasicTest {
     public void startQuerydsl() {
         // 참고로 gradle 사용시 Querydsl 사용하려면 gradle - Task - other - compileQuerydsl 을 실행해주면
         // build 파일에 querydsl 관련 entity가 생성된다.
-        QMember m = new QMember("m");
+//        QMember m = new QMember("m");
+//        QMember m = QMember.member; // static import 도 가능
 
         Member findMember = queryFactory
-                .select(m)
-                .from(m)
-                .where(m.username.eq("member1")) // 파라미터 바인딩을 자동으로 해준다.
+                .select(member)
+                .from(member)
+                .where(member.username.eq("member1")) // 파라미터 바인딩을 자동으로 해준다.
                 .fetchOne();
 
         assertThat(findMember.getUsername()).isEqualTo("member1");
+    }
+
+    @Test
+    public void search() {
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .where(
+                        member.username.eq("member1")
+                                .and(member.age.eq(10))
+                )
+                .fetchOne();
+
+        assertThat(findMember.getUsername()).isEqualTo("member1");
+
     }
 }
