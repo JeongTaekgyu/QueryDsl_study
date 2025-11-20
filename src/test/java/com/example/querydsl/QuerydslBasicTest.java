@@ -317,4 +317,59 @@ public class QuerydslBasicTest {
                 .containsExactly("teamA", "teamB");
     }
 
+
+    // ON절을 활용한 조인(JPA 2.1부터 지원)
+    // 1. 조인 대상 필터링
+    // 2. 연관관계 없는 엔티티 외부 조인
+
+    // 1. 조인 대상 필터링
+    // 예) 회원과 팀을 조인하면서, 팀 이름이 teamA인 팀만 조인, 회원은 모두 조회
+    /**
+     * 예) 회원과 팀을 조인하면서, 팀 이름이 teamA인 팀만 조인, 회원은 모두 조회
+     * JPQL: SELECT m, t FROM Member m LEFT JOIN m.team t on t.name = 'teamA'
+     * SQL: SELECT m.*, t.* FROM Member m LEFT JOIN Team t ON m.TEAM_ID=t.id and
+        t.name='teamA'
+     */
+    @Test
+    public void join_on_filtering() throws Exception {
+        // member에 이미 team이 연관관계로 매핑되어 있어서, 그 연관관계를 활용해 team.name이 'teamA'인 team만 조건으로 걸어서 조인하는 것
+        List<Tuple> result = queryFactory
+                .select(member, team)
+                .from(member)
+                .leftJoin(member.team, team).on(team.name.eq("teamA"))
+                .fetch();
+
+        for (Tuple tuple : result) {
+            System.out.println("tuple = " + tuple);
+            }
+    }
+    // 참고: on 절을 활용해 조인 대상을 필터링 할 때, 외부조인이 아니라 내부조인(inner join)을 사용하면,
+    // where 절 에서 필터링 하는 것과 기능이 동일하다.
+    // 따라서 on 절을 활용한 조인 대상 필터링을 사용할 때, 내부조인 이면 익 숙한 where 절로 해결하고,
+    // 정말 외부조인이 필요한 경우에만 이 기능을 사용하자.
+
+    // 2. 연관관계 없는 엔티티 외부 조인
+    // 예) 회원의 이름과 팀의 이름이 같은 대상 **외부 조인**
+    /**
+     * 2. 연관관계 없는 엔티티 외부 조인
+     * 예) 회원의 이름과 팀의 이름이 같은 대상 외부 조인
+     * JPQL: SELECT m, t FROM Member m LEFT JOIN Team t on m.username = t.name
+     * SQL: SELECT m.*, t.* FROM Member m LEFT JOIN Team t ON m.username = t.name */
+    @Test
+    public void join_on_no_relation() throws Exception {
+        em.persist(new Member("teamA"));
+        em.persist(new Member("teamB"));
+        em.persist(new Member("teamC"));
+
+        // member.username과 team.name 사이에 JPA 연관관계가 없다.
+        List<Tuple> result = queryFactory
+                .select(member, team)
+                .from(member)
+                .leftJoin(team).on(member.username.eq(team.name))
+                .fetch();
+
+        for (Tuple tuple : result) {
+            System.out.println("t=" + tuple);
+        }
+    }
 }
