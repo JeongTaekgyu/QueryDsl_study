@@ -14,6 +14,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.PersistenceUnit;
 
 import java.util.List;
 
@@ -31,7 +33,7 @@ public class QuerydslBasicTest {
     JPAQueryFactory queryFactory; // 멀티스레드 환경에서 동시성 문제가 없이 설계되어 있다.
 
     @BeforeEach // 각 테스트 케이스전에 실행한다.
-    public void before(){
+    public void before() {
         queryFactory = new JPAQueryFactory(em);
 
         Team teamA = new Team("teamA");
@@ -55,7 +57,7 @@ public class QuerydslBasicTest {
         // member1을 찾아라
         String qlString =
                 "select m from Member m " +
-                "where m.username = :username";
+                        "where m.username = :username";
 
         // 첫 번째 인자로 JPQL 문자열(qlString)을 받고, 두 번째 인자로 결과로 받을 엔티티 타입을 지정합니다.
         Member findMember = em.createQuery(qlString, Member.class)
@@ -153,7 +155,8 @@ public class QuerydslBasicTest {
      * 회원 정렬 순서
      * 1. 회원 나이 내림차순(desc)
      * 2. 회원 이름 올림차순(asc)
-     * 단 2에서 회원 이름이 없으면 마지막에 출력(nulls last) */
+     * 단 2에서 회원 이름이 없으면 마지막에 출력(nulls last)
+     */
     @Test
     public void sort() {
         em.persist(new Member(null, 100));
@@ -213,10 +216,10 @@ public class QuerydslBasicTest {
      * JPQL
      * select
      * COUNT(m),
-     *    SUM(m.age),
-     *    AVG(m.age),
-     *    MAX(m.age),
-     *    MIN(m.age)
+     * SUM(m.age),
+     * AVG(m.age),
+     * MAX(m.age),
+     * MIN(m.age)
      * from Member m
      */
     @Test
@@ -294,6 +297,7 @@ public class QuerydslBasicTest {
 
     // **세타 조인**
     // 연관관계가 없는 필드로 조인
+
     /**
      * 세타 조인(연관관계가 없는 필드로 조인)
      * 회원의 이름이 팀 이름과 같은 회원 조회
@@ -324,11 +328,12 @@ public class QuerydslBasicTest {
 
     // 1. 조인 대상 필터링
     // 예) 회원과 팀을 조인하면서, 팀 이름이 teamA인 팀만 조인, 회원은 모두 조회
+
     /**
      * 예) 회원과 팀을 조인하면서, 팀 이름이 teamA인 팀만 조인, 회원은 모두 조회
      * JPQL: SELECT m, t FROM Member m LEFT JOIN m.team t on t.name = 'teamA'
      * SQL: SELECT m.*, t.* FROM Member m LEFT JOIN Team t ON m.TEAM_ID=t.id and
-        t.name='teamA'
+     * t.name='teamA'
      */
     @Test
     public void join_on_filtering() throws Exception {
@@ -341,7 +346,7 @@ public class QuerydslBasicTest {
 
         for (Tuple tuple : result) {
             System.out.println("tuple = " + tuple);
-            }
+        }
     }
     // 참고: on 절을 활용해 조인 대상을 필터링 할 때, 외부조인이 아니라 내부조인(inner join)을 사용하면,
     // where 절 에서 필터링 하는 것과 기능이 동일하다.
@@ -350,11 +355,13 @@ public class QuerydslBasicTest {
 
     // 2. 연관관계 없는 엔티티 외부 조인
     // 예) 회원의 이름과 팀의 이름이 같은 대상 **외부 조인**
+
     /**
      * 2. 연관관계 없는 엔티티 외부 조인
      * 예) 회원의 이름과 팀의 이름이 같은 대상 외부 조인
      * JPQL: SELECT m, t FROM Member m LEFT JOIN Team t on m.username = t.name
-     * SQL: SELECT m.*, t.* FROM Member m LEFT JOIN Team t ON m.username = t.name */
+     * SQL: SELECT m.*, t.* FROM Member m LEFT JOIN Team t ON m.username = t.name
+     */
     @Test
     public void join_on_no_relation() throws Exception {
         em.persist(new Member("teamA"));
@@ -372,4 +379,44 @@ public class QuerydslBasicTest {
             System.out.println("t=" + tuple);
         }
     }
+
+    // 조인 - 페치 조인
+    // 페치 조인은 SQL에서 제공하는 기능은 아니다. SQL조인을 활용해서 연관된 엔티티를 SQL 한번에 조회하는 기능이ㄷㅏ.
+    // 주로 성능 최적화에 사용하는 방법이다.
+
+    // **페치 조인 미적용**
+    // 지연로딩으로 Member, Team SQL 쿼리 각각 실행
+    @PersistenceUnit
+    EntityManagerFactory emf;
+
+    @Test
+    public void fetchJoinNo() throws Exception {
+        em.flush();
+        em.clear();
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .where(member.username.eq("member1"))
+                .fetchOne();
+
+        boolean loaded =
+                emf.getPersistenceUnitUtil().isLoaded(findMember.getTeam());
+        assertThat(loaded).as("페치 조인 미적용").isFalse();
+    }
+
+    // **페치 조인 적용**
+    // 즉시로딩으로 Member, Team SQL 쿼리 조인으로 한번에 조회
+    @Test
+    public void fetchJoinUse() throws Exception {
+        em.flush();
+        em.clear();
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .join(member.team, team).fetchJoin()
+                .where(member.username.eq("member1"))
+                .fetchOne();
+        boolean loaded =
+                emf.getPersistenceUnitUtil().isLoaded(findMember.getTeam());
+        assertThat(loaded).as("페치 조인 적용").isTrue();
+    }
+
 }
